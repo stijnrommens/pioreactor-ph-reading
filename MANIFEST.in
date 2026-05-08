@@ -1,2 +1,4 @@
-include pioreactor_ph_reading/additional_config.ini
 recursive-include pioreactor_ph_reading/ui *.yaml
+recursive-include pioreactor_ph_reading/exportable_datasets *.yaml
+include pioreactor_ph_reading/additional_config.ini
+include pioreactor_ph_reading/additional_sql.sql
