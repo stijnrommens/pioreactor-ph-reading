@@ -1,0 +1,12 @@
+---
+data_source: ph_readings # SQL table
+data_source_column: ph_reading
+title: pH readings
+mqtt_topic: ph_reading/ph
+chart_key: ph_readings
+source: app # not sure about this one
+y_axis_label: pH
+interpolation: stepAfter
+y_axis_domain: [2, 8]
+lookback: 100000
+fixed_decimals: 2

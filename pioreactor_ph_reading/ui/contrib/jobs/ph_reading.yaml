@@ -1,0 +1,13 @@
+---
+display_name: pH reading
+job_name: ph_reading
+display: true
+source: pioreactor_ph_reading
+description: Records a pH reading from sensor.
+published_settings:
+  - key: interval
+    unit: s
+    label: Time between pH readings
+    type: numeric
+    display: True
+    description: The duration (s) between pH readings. There is a minimum duration, around 10s, that is required for proper accuracy.
