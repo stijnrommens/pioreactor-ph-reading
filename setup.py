@@ -17,5 +17,5 @@ setup(
     url="https://github.com/stijnrommens/pioreactor-ph-reading",
     packages=find_packages(),
     include_package_data=True,
-    entry_points={"pioreactor.plugins": "pioreactor_relay_plugin = pioreactor_relay_plugin"},
+    entry_points={"pioreactor.plugins": "pioreactor_ph_reading = pioreactor_ph_reading"},
 )
