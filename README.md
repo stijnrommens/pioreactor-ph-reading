@@ -7,7 +7,7 @@ This is a simple Pioreactor plugin that returns pH readings at a set duration fr
 Install from the command line, see Pioreactor docs.
 
 > [!IMPORTANT]
-> After installation, you'll need to check your configuration to add the right I2C-adress. Find the section `[pH_reading.config]`, and edit parameter `i2c_channel_hex`. Normally, the EZO pH circuit should be adressed as 0x63.
+> After installation, you'll need to check your configuration to add the right I2C-adress. Find the section `[pH_reading.config]`, and edit parameter `i2c_channel_hex`. Normally, the EZO pH circuit should be adressed as `0x63`.
 
 
 ### Overview chart
