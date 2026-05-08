@@ -1,9 +1,9 @@
 dataset_name: ph_readings
 default_order_by: timestamp
 description: This dataset includes the pH readings.
-display_name: pH Readings
+display_name: pH readings
 has_experiment: true
-has_unit: true # not sure about this one
+has_unit: true
 source: pioreactor_ph_reading
 table: ph_readings
 timestamp_columns:

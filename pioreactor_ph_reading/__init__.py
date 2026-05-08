@@ -72,8 +72,8 @@ class PHReading(BackgroundJobContrib):
         for _ in range(samples):
             running_sum += self.query("R")
             sleep(0.05)
-        self.pH = running_sum/samples
-        return self.pH
+        self.ph = running_sum/samples
+        return self.ph
       
     def set_interval(self, new_interval) -> None:
         self.record_ph_timer.interval = new_interval
