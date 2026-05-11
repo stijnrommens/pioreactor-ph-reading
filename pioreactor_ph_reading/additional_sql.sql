@@ -4,3 +4,5 @@ CREATE TABLE IF NOT EXISTS ph_readings (
     timestamp                TEXT NOT NULL,
     ph_reading               REAL
 );
+
+CREATE INDEX IF NOT EXISTS pH_measurements_ix ON pH_readings (experiment);

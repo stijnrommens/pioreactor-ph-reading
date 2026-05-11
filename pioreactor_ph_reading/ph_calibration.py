@@ -2,101 +2,428 @@
 from __future__ import annotations
 
 import typing as t
+import logging
 from datetime import datetime
 
 from pioreactor import structs
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import (
-    SessionStep,
-    StepRegistry,
-    run_session_in_cli,
-    steps,
-    fields,
-)
-from pioreactor.calibrations.structured_session import (
-    CalibrationSession,
-    utc_iso_timestamp,
-)
+from pioreactor.calibrations.session_flow import SessionStep
+from pioreactor.calibrations.session_flow import StepRegistry
+from pioreactor.calibrations.session_flow import fields
+from pioreactor.calibrations.session_flow import steps
+from pioreactor.calibrations.structured_session import CalibrationSession
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
-#
-# ---- Calibration record -----------------------------------------------------
-#
+logger = logging.getLogger("ph_calibration")
 
-class PHBufferCalibration(structs.CalibrationBase, kw_only=True, tag="ph_buffer"):
+
+class PhEzoCalibration(structs.CalibrationBase, kw_only=True, tag="ph_buffer"):
     """
-    Simple buffer‑based pH calibration.
+    Stores metadata for a pH calibration event.
 
-    We assume a linear model mapping measured voltage → pH.
+    Note: the EZO board performs its own calibration internally. This record is
+    primarily for traceability + exportability (buffers used, timestamps, etc).
     """
 
-    x: str = "Voltage"
+    x: str = "pH"
     y: str = "pH"
-
-    buffer_solutions: list[float]
-    electrode_type: str = "unknown"
+    buffers_used: list[float]
+    ezo_calibration_status: str
+    notes: str = ""
 
 
 def _new_calibration_name() -> str:
-    return f"ph_buffer_{utc_iso_timestamp().replace(':','').replace('-','')}"
+    # Keep it filename-friendly.
+    return f"buffer_ph_{utc_iso_timestamp().replace(':', '').replace('-', '')}"
 
 
 def _poly_identity() -> structs.PolyFitCoefficients:
-    # y = 1*x + 0 (placeholder; real fit could be added later)
+    # y = 1*x + 0
     return structs.PolyFitCoefficients([1.0, 0.0])
 
 
+def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
+    return {
+        "title": "pH calibration checkpoints",
+        "x_label": "Buffer pH",
+        "y_label": "Measured pH",
+        "series": [
+            {
+                "id": "ph",
+                "label": "Measurements",
+                "points": points,
+            }
+        ],
+    }
+
+
+def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
+    """
+    Execute a raw pH command.
+
+    - In **UI sessions**, delegate to the registered calibration action via
+      `ctx.executor`, which runs in a worker process that has GPIO / I²C access.
+    - In **CLI or non-UI contexts**, talk directly to the probe.
+    """
+
+    logger.info(
+        "ph_calibration: exec_ph_cmd cmd=%s timeout_s=%.2f mode=%s",
+        cmd,
+        timeout_s,
+        getattr(ctx, "mode", "?"),
+    )
+
+    # UI path: use the executor, which is how other calibrations work and avoids
+    # the webserver process needing direct GPIO access. We also retry a couple
+    # of times on transient EZO error codes (254 / 255).
+    if getattr(ctx, "executor", None) is not None and getattr(ctx, "mode", None) == "ui":
+        last_status = 0
+        last_body: t.Any = None
+        for attempt in range(3):
+            payload = ctx.executor("ph_buffer_cmd", {"cmd": cmd, "timeout_s": float(timeout_s)})
+            if isinstance(payload, dict):
+                last_status = int(payload.get("status_code", 0))
+                last_body = payload.get("body")
+            logger.info(
+                "ph_calibration: exec_ph_cmd (ui) attempt=%d cmd=%s status_code=%s",
+                attempt + 1,
+                cmd,
+                last_status,
+            )
+            if last_status == 1:
+                return {"status_code": last_status, "body": last_body}
+            # 254 / 255 are EZO error / no data codes; retry a couple of times.
+        return {"status_code": last_status, "body": last_body}
+
+    # CLI / non-UI fallback: run locally.
+    from atlas_ezo_ph import AtlasEzoPH
+
+    try:
+        probe = AtlasEzoPH.from_config()
+        resp = probe.query(cmd, timeout_s=float(timeout_s))
+        logger.info(
+            "ph_calibration: exec_ph_cmd (cli) completed cmd=%s status_code=%s",
+            cmd,
+            getattr(resp, "status_code", "?"),
+        )
+        return {"status_code": resp.status_code, "body": resp.body}
+    except Exception as exc:
+        logger.exception("ph_calibration: exec_ph_cmd error cmd=%s", cmd)
+        raise RuntimeError(f"pH command '{cmd}' failed: {exc}") from exc
+
+
+def _exec_ph_read(ctx, *, samples: int) -> float:
+    """
+    Read pH.
+
+    Like _exec_ph_cmd, this logs what is happening for easier debugging.
+    """
+
+    logger.info(
+        "ph_calibration: exec_ph_read samples=%d mode=%s",
+        int(samples),
+        getattr(ctx, "mode", "?"),
+    )
+
+    # UI path: use executor. We may receive either {"pH": ...} or an error-like
+    # payload with status_code/body – retry a couple of times on 254/255.
+    if getattr(ctx, "executor", None) is not None and getattr(ctx, "mode", None) == "ui":
+        last_error: str | None = None
+        for attempt in range(3):
+            payload = ctx.executor("ph_buffer_read", {"samples": int(samples)})
+            if not isinstance(payload, dict):
+                last_error = "invalid payload from executor"
+                logger.warning("ph_calibration: exec_ph_read (ui) attempt=%d invalid payload", attempt + 1)
+                continue
+            if "pH" in payload:
+                ph_value = float(payload["pH"])
+                logger.info(
+                    "ph_calibration: exec_ph_read (ui) completed samples=%d pH=%f",
+                    int(samples),
+                    ph_value,
+                )
+                return ph_value
+            status = int(payload.get("status_code", 0))
+            body = str(payload.get("body", "")).strip()
+            last_error = f"status={status} body={body!r}"
+            logger.warning(
+                "ph_calibration: exec_ph_read (ui) attempt=%d error status_code=%s body=%s",
+                attempt + 1,
+                status,
+                body,
+            )
+            if status not in (254, 255):
+                break
+        raise RuntimeError(f"pH read failed: {last_error or 'unknown error'}")
+
+    # CLI / non-UI path: direct hardware access.
+    from atlas_ezo_ph import AtlasEzoPH
+
+    try:
+        probe = AtlasEzoPH.from_config()
+        ph_value = float(probe.read_ph(samples=int(samples)))
+        logger.info("ph_calibration: exec_ph_read (cli) completed samples=%d pH=%f", int(samples), ph_value)
+        return ph_value
+    except Exception as exc:
+        logger.exception("ph_calibration: exec_ph_read error")
+        raise RuntimeError(f"pH read failed: {exc}") from exc
+
+
+
 #
-# ---- Session steps -----------------------------------------------------------
+# Calibration action integration (Huey executor)
 #
+
+
+def _register_ph_calibration_actions() -> None:
+    """
+    Register calibration actions that can be invoked by UI sessions via ctx.executor.
+
+    The session executor routes actions to Huey tasks through pioreactor.web.tasks.
+    """
+
+    from pioreactor.web.config import huey
+    from pioreactor.web.tasks import register_calibration_action
+
+    from atlas_ezo_ph import AtlasEzoPH
+
+    @huey.task()
+    def ph_buffer_cmd(cmd: str, timeout_s: float = 1.5) -> dict[str, t.Any]:
+        probe = AtlasEzoPH.from_config()
+        resp = probe.query(cmd, timeout_s=float(timeout_s))
+        return {"status_code": resp.status_code, "body": resp.body}
+
+    @huey.task()
+    def ph_buffer_read(samples: int = 3) -> dict[str, t.Any]:
+        probe = AtlasEzoPH.from_config()
+        ph_value = float(probe.read_ph(samples=int(samples)))
+        return {"pH": ph_value}
+
+    def _default_normalizer(result: t.Any) -> dict[str, t.Any]:
+        return result if isinstance(result, dict) else {}
+
+    register_calibration_action(
+        "ph_buffer_cmd",
+        lambda payload: (
+            ph_buffer_cmd(str(payload["cmd"]), float(payload.get("timeout_s", 1.5))),
+            "pH command",
+            _default_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "ph_buffer_read",
+        lambda payload: (
+            ph_buffer_read(int(payload.get("samples", 3))),
+            "pH read",
+            _default_normalizer,
+        ),
+    )
+
+
+# Called on import so both web + huey can see actions.
+try:
+    _register_ph_calibration_actions()
+except Exception:
+    # If imported in non-web contexts, skip registering actions.
+    pass
+
+
+#
+# Session-based protocol
+#
+
 
 class Intro(SessionStep):
     step_id = "intro"
 
     def render(self, ctx) -> structs.CalibrationStep:
-        return steps.info(
-            "pH buffer calibration",
+        body = "\n".join(
+            [
+                "This guided protocol calibrates a pH sensor using buffer solutions.",
+                "",
+                "Before you start:",
+                "- Stop any running pH tracking job (ph_reading) on this unit.",
+                "- Prepare fresh pH 7.00 buffer and pH 4.01 buffer (optional: pH 10.01).",
+                "- Rinse the probe with distilled water between buffers and gently blot dry.",
+                "- Avoid bubbles on the probe tip.",
+                "- In each buffer step, wait ~30 seconds for readings to stabilize before pressing Continue.",
+                "",
+                "Press Continue to configure the protocol.",
+            ]
+        )
+        return steps.info("pH calibration", body)
+
+    def advance(self, ctx):
+        logger.info("ph_calibration: Intro.advance -> Configure")
+        return Configure()
+
+
+class Configure(SessionStep):
+    step_id = "configure"
+
+    def render(self, ctx) -> structs.CalibrationStep:
+        return steps.form(
+            "Protocol settings",
+            "Choose whether to run a 2‑point or 3‑point calibration.",
+            [
+                fields.bool("include_high_point", label="Include pH 10.01 step", default=False),
+                fields.float(
+                    "timeout_s",
+                    label="Command timeout (seconds)",
+                    minimum=0.5,
+                    maximum=20.0,
+                    default=1.5,
+                ),
+                fields.int(
+                    "read_samples",
+                    label="Samples per checkpoint",
+                    minimum=1,
+                    maximum=10,
+                    default=3,
+                ),
+            ],
+        )
+
+    def advance(self, ctx):
+        logger.info("ph_calibration: Configure.advance include_high_point=%s", ctx.inputs.bool("include_high_point", default=False))
+        ctx.data["include_high_point"] = ctx.inputs.bool("include_high_point", default=False)
+        ctx.data["timeout_s"] = ctx.inputs.float("timeout_s", minimum=0.5, maximum=20.0, default=1.5)
+        ctx.data["read_samples"] = ctx.inputs.int("read_samples", minimum=1, maximum=10, default=3)
+        ctx.data["points"] = []
+        return ClearExisting()
+
+
+class ClearExisting(SessionStep):
+    step_id = "clear_existing"
+
+    def render(self, ctx) -> structs.CalibrationStep:
+        return steps.action(
+            "Clear existing calibration",
             "\n".join(
                 [
-                    "This protocol calibrates a pH probe using buffer solutions.",
+                    "This will clear any existing calibration stored on the EZO‑pH board.",
+                    "Make sure you want to continue.",
                     "",
-                    "You will manually enter the measured voltage and known buffer pH.",
-                    "",
-                    "Press Continue to begin.",
+                    "Press Continue to clear calibration on the probe.",
                 ]
             ),
         )
 
     def advance(self, ctx):
-        ctx.data["points"] = []
-        return Measure()
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        logger.info("ph_calibration: ClearExisting.advance starting Cal,clear timeout_s=%.2f", timeout_s)
+        result = _exec_ph_cmd(ctx, cmd="Cal,clear", timeout_s=timeout_s)
+        if int(result.get("status_code", 0)) != 1:
+            logger.error("ph_calibration: Cal,clear failed result=%s", result)
+            raise ValueError(f"Cal,clear failed: {result}")
+        logger.info("ph_calibration: ClearExisting.advance succeeded")
+        return BufferMid()
 
 
-class Measure(SessionStep):
-    step_id = "measure"
+class BufferMid(SessionStep):
+    step_id = "buffer_7"
 
     def render(self, ctx) -> structs.CalibrationStep:
-        return steps.form(
-            "Record buffer measurement",
-            "Enter the measured voltage and the known buffer pH value.",
-            [
-                fields.float("voltage", label="Measured voltage", minimum=-5, maximum=5),
-                fields.float("ph", label="Buffer pH", minimum=0, maximum=14),
-                fields.bool("add_another", label="Add another buffer?", default=False),
-            ],
+        return steps.action(
+            "pH 7.00 buffer",
+            "\n".join(
+                [
+                    "Place the probe in pH 7.00 buffer.",
+                    "Wait until the reading stabilizes.",
+                    "",
+                    "Press Continue to calibrate the mid-point (7.00).",
+                ]
+            ),
         )
 
     def advance(self, ctx):
-        voltage = ctx.inputs.float("voltage")
-        ph_value = ctx.inputs.float("ph")
-        add_another = ctx.inputs.bool("add_another", default=False)
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        samples = int(ctx.data.get("read_samples", 3))
 
-        ctx.data["points"].append({"x": voltage, "y": ph_value})
+        logger.info("ph_calibration: BufferMid.advance reading pH at 7.00 buffer")
+        reading = _exec_ph_read(ctx, samples=samples)
 
-        if add_another:
-            return Measure()
+        ctx.data["points"].append({"x": 7.00, "y": float(reading)})
+
+        logger.info("ph_calibration: BufferMid.advance sending Cal,mid,7.00")
+        result = _exec_ph_cmd(ctx, cmd="Cal,mid,7.00", timeout_s=timeout_s)
+        if int(result.get("status_code", 0)) != 1:
+            logger.error("ph_calibration: Cal,mid,7.00 failed result=%s", result)
+            raise ValueError(f"Cal,mid,7.00 failed: {result}")
+        logger.info("ph_calibration: BufferMid.advance succeeded")
+        return BufferLow()
+
+
+class BufferLow(SessionStep):
+    step_id = "buffer_4"
+
+    def render(self, ctx) -> structs.CalibrationStep:
+        return steps.action(
+            "pH 4.01 buffer",
+            "\n".join(
+                [
+                    "Rinse the probe, then place it in pH 4.01 buffer.",
+                    "Wait until the reading stabilizes.",
+                    "",
+                    "Press Continue to calibrate the low-point (4.01).",
+                ]
+            ),
+        )
+
+    def advance(self, ctx):
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        samples = int(ctx.data.get("read_samples", 3))
+
+        logger.info("ph_calibration: BufferLow.advance reading pH at 4.01 buffer")
+        reading = _exec_ph_read(ctx, samples=samples)
+
+        ctx.data["points"].append({"x": 4.01, "y": float(reading)})
+
+        logger.info("ph_calibration: BufferLow.advance sending Cal,low,4.01")
+        result = _exec_ph_cmd(ctx, cmd="Cal,low,4.01", timeout_s=timeout_s)
+        if int(result.get("status_code", 0)) != 1:
+            logger.error("ph_calibration: Cal,low,4.01 failed result=%s", result)
+            raise ValueError(f"Cal,low,4.01 failed: {result}")
+
+        if bool(ctx.data.get("include_high_point", False)):
+            return BufferHigh()
+        return Finalize()
+
+
+class BufferHigh(SessionStep):
+    step_id = "buffer_10"
+
+    def render(self, ctx) -> structs.CalibrationStep:
+        return steps.action(
+            "pH 10.01 buffer (optional)",
+            "\n".join(
+                [
+                    "Rinse the probe, then place it in pH 10.01 buffer.",
+                    "Wait until the reading stabilizes.",
+                    "",
+                    "Press Continue to calibrate the high-point (10.01).",
+                ]
+            ),
+        )
+
+    def advance(self, ctx):
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        samples = int(ctx.data.get("read_samples", 3))
+
+        logger.info("ph_calibration: BufferHigh.advance reading pH at 10.01 buffer")
+        reading = _exec_ph_read(ctx, samples=samples)
+
+        ctx.data["points"].append({"x": 10.01, "y": float(reading)})
+
+        logger.info("ph_calibration: BufferHigh.advance sending Cal,high,10.01")
+        result = _exec_ph_cmd(ctx, cmd="Cal,high,10.01", timeout_s=timeout_s)
+        if int(result.get("status_code", 0)) != 1:
+            logger.error("ph_calibration: Cal,high,10.01 failed result=%s", result)
+            raise ValueError(f"Cal,high,10.01 failed: {result}")
+        logger.info("ph_calibration: BufferHigh.advance succeeded")
         return Finalize()
 
 
@@ -104,48 +431,63 @@ class Finalize(SessionStep):
     step_id = "finalize"
 
     def render(self, ctx) -> structs.CalibrationStep:
-        return steps.action(
+        step = steps.action(
             "Finalize and save",
-            "Press Continue to save the pH calibration.",
+            "Press Continue to verify calibration status and save a calibration record to Pioreactor.",
         )
+        if ctx.data.get("points"):
+            step.metadata = {"chart": _build_chart_from_points(ctx.data["points"])}
+        return step
 
     def advance(self, ctx):
-        points: list[dict[str, float]] = ctx.data.get("points", [])
-        if len(points) < 1:
-            raise ValueError("At least one calibration point is required.")
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        logger.info("ph_calibration: Finalize.advance sending Cal,?")
+        status_resp = _exec_ph_cmd(ctx, cmd="Cal,?", timeout_s=timeout_s)
+        if int(status_resp.get("status_code", 0)) != 1:
+            logger.error("ph_calibration: Cal,? failed result=%s", status_resp)
+            raise ValueError(f"Cal,? failed: {status_resp}")
 
-        xs = [p["x"] for p in points]
-        ys = [p["y"] for p in points]
+        status_body = str(status_resp.get("body", "")).strip()
 
-        calibration = PHBufferCalibration(
+        points: list[dict[str, float]] = list(ctx.data.get("points", []))
+        xs = [float(p["x"]) for p in points]
+        ys = [float(p["y"]) for p in points]
+
+        unit = get_unit_name()
+        created_at: datetime = current_utc_datetime()
+
+        calibration = PhEzoCalibration(
             calibration_name=_new_calibration_name(),
-            calibrated_on_pioreactor_unit=get_unit_name(),
-            created_at=current_utc_datetime(),
+            calibrated_on_pioreactor_unit=unit,
+            created_at=created_at,
             curve_data_=_poly_identity(),
             recorded_data={"x": xs, "y": ys},
-            buffer_solutions=ys,
-            electrode_type="epoxy",
+            buffers_used=xs,
+            buffer_calibration_status=status_body,
+            notes="Calibrated using UI protocol.",
         )
 
         link = ctx.store_calibration(calibration, "ph")
-        ctx.complete({"calibration": link})
+        ctx.complete(
+            {
+                "title": "pH calibration saved",
+                "calibration": link,
+                "buffer_status": status_body,
+            }
+        )
         return None
 
 
-#
-# ---- Step registry -----------------------------------------------------------
-#
-
 PH_STEPS: StepRegistry = {
     Intro.step_id: Intro,
-    Measure.step_id: Measure,
+    Configure.step_id: Configure,
+    ClearExisting.step_id: ClearExisting,
+    BufferMid.step_id: BufferMid,
+    BufferLow.step_id: BufferLow,
+    BufferHigh.step_id: BufferHigh,
     Finalize.step_id: Finalize,
 }
 
-
-#
-# ---- Session + protocol ------------------------------------------------------
-#
 
 def start_ph_buffer_session(target_device: str) -> CalibrationSession:
     now = utc_iso_timestamp()
@@ -161,30 +503,31 @@ def start_ph_buffer_session(target_device: str) -> CalibrationSession:
     )
 
 
-class BufferBasedPHProtocol(CalibrationProtocol[str]):
+class EzoBufferPHProtocol(CalibrationProtocol[str]):
     target_device = "ph"
     protocol_name = "buffer_based"
-    title = "pH calibration (buffer entry)"
-    description = "Calibrate a pH probe by manually entering voltage and buffer pH values."
+    title = "pH calibration"
+    description = "Calibrate the pH sensor using buffer solution at pH 7.00 and pH 4.01 (optional pH 10.01)."
+    requirements = (
+        "pH probe connected and readable",
+        "pH 7.00 buffer solution",
+        "pH 4.01 buffer solution",
+        "Distilled water for rinsing",
+        "Optional: pH 10.01 buffer solution",
+    )
+    priority = 50
     step_registry = PH_STEPS
-    priority = 80
 
     @classmethod
     def start_session(cls, target_device: str) -> CalibrationSession:
         return start_ph_buffer_session(target_device)
 
-    def run(self, target_device: str) -> structs.CalibrationBase:
+    def run(self, target_device: str) -> structs.CalibrationBase | list[structs.CalibrationBase]:
+        # CLI run is supported via the same session steps.
+        from pioreactor.calibrations.session_flow import run_session_in_cli
+
         session = start_ph_buffer_session(target_device)
         calibrations = run_session_in_cli(self.step_registry, session)
         if not calibrations:
             raise RuntimeError("No calibration was produced.")
         return t.cast(structs.CalibrationBase, calibrations[-1])
-
-
-#
-# ---- CLI helper --------------------------------------------------------------
-#
-
-def run_ph_buffer_session_cli():
-    session = start_ph_buffer_session("ph")
-    return run_session_in_cli(PH_STEPS, session)
