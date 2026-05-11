@@ -5,7 +5,7 @@ import json
 import click
 import busio
 from time import sleep
-from atlas_ezo_ph import AtlasEzoPH
+from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import produce_metadata
@@ -54,19 +54,10 @@ class PHReading(BackgroundJobContrib):
         super().__init__(unit=unit, experiment=experiment, plugin_name="pioreactor_ph_reading", **kwargs)
 
         self.interval = config.getfloat(f"{self.job_name}.config", "interval")
-
-        # self.i2c_channel = int(config.get("ph_reading.config", "i2c_channel_hex"), base=16)
-        # self.i2c = busio.I2C(3, 2)
         self.probe = AtlasEzoPH.from_config()
         self.record_ph_timer = timing.RepeatedTimer(self.interval,self.record_from_ph,run_immediately=True).start()
 
     def record_from_ph(self):
-        # samples = 2
-        # running_sum = 0.0
-        # for _ in range(samples):
-        #     running_sum += self.query("R")
-        #     sleep(0.05)
-        # self.ph = running_sum/samples
         self.ph = float(self.probe.read_ph(samples=2))
         return self.ph
       
@@ -85,31 +76,6 @@ class PHReading(BackgroundJobContrib):
 
     def on_disconnected(self) -> None:
         self.record_ph_timer.cancel()
-
-    # def write(self, cmd):
-    #     cmd_bytes = bytes(cmd + "\x00", "latin-1")  # Null-terminated command
-    #     self.i2c.writeto(self.i2c_channel, cmd_bytes)
-
-    # @staticmethod
-    # def handle_raspi_glitch(response):
-    #     return [chr(x & ~0x80) for x in response]
-
-    # def read(self, num_of_bytes=31):
-    #     result = bytearray(num_of_bytes)
-    #     self.i2c.readfrom_into(self.i2c_channel, result)
-    #     response = self.get_response(result)
-    #     char_list = self.handle_raspi_glitch(response[1:])
-    #     return float(''.join(char_list))
-
-    # def query(self, command):
-    #     self.write(command)
-    #     current_timeout = 1.5
-    #     sleep(current_timeout)
-    #     return self.read()
-
-    # @staticmethod
-    # def get_response(raw_data):
-    #     return [i for i in raw_data if i != 0]
 
 
 @run.command(name="ph_reading")
