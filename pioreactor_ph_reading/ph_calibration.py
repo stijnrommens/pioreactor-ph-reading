@@ -246,7 +246,7 @@ class Intro(SessionStep):
                 "",
                 "Before you start:",
                 "- Stop any running pH tracking job (ph_reading) on this unit.",
-                "- Prepare fresh pH 7.00 buffer and pH 4.01 buffer (optional: pH 10.01).",
+                "- Prepare fresh pH 7.00 buffer and pH 4.00 buffer (optional: pH 10.01).",
                 "- Rinse the probe with distilled water between buffers and gently blot dry.",
                 "- Avoid bubbles on the probe tip.",
                 "- In each buffer step, wait ~30 seconds for readings to stabilize before pressing Continue.",
@@ -362,13 +362,13 @@ class BufferLow(SessionStep):
 
     def render(self, ctx) -> structs.CalibrationStep:
         return steps.action(
-            "pH 4.01 buffer",
+            "pH 4.00 buffer",
             "\n".join(
                 [
-                    "Rinse the probe, then place it in pH 4.01 buffer.",
+                    "Rinse the probe, then place it in pH 4.00 buffer.",
                     "Wait until the reading stabilizes.",
                     "",
-                    "Press Continue to calibrate the low-point (4.01).",
+                    "Press Continue to calibrate the low-point (4.00).",
                 ]
             ),
         )
@@ -377,16 +377,16 @@ class BufferLow(SessionStep):
         timeout_s = float(ctx.data.get("timeout_s", 1.5))
         samples = int(ctx.data.get("read_samples", 3))
 
-        logger.info("ph_calibration: BufferLow.advance reading pH at 4.01 buffer")
+        logger.info("ph_calibration: BufferLow.advance reading pH at 4.00 buffer")
         reading = _exec_ph_read(ctx, samples=samples)
 
-        ctx.data["points"].append({"x": 4.01, "y": float(reading)})
+        ctx.data["points"].append({"x": 4.00, "y": float(reading)})
 
-        logger.info("ph_calibration: BufferLow.advance sending Cal,low,4.01")
-        result = _exec_ph_cmd(ctx, cmd="Cal,low,4.01", timeout_s=timeout_s)
+        logger.info("ph_calibration: BufferLow.advance sending Cal,low,4.00")
+        result = _exec_ph_cmd(ctx, cmd="Cal,low,4.00", timeout_s=timeout_s)
         if int(result.get("status_code", 0)) != 1:
-            logger.error("ph_calibration: Cal,low,4.01 failed result=%s", result)
-            raise ValueError(f"Cal,low,4.01 failed: {result}")
+            logger.error("ph_calibration: Cal,low,4.00 failed result=%s", result)
+            raise ValueError(f"Cal,low,4.00 failed: {result}")
 
         if bool(ctx.data.get("include_high_point", False)):
             return BufferHigh()
@@ -507,11 +507,11 @@ class EzoBufferPHProtocol(CalibrationProtocol[str]):
     target_device = "ph"
     protocol_name = "ezo_buffer"
     title = "pH calibration (buffer solutions)"
-    description = "Calibrate an Atlas Scientific EZO‑pH board using pH 7.00 and pH 4.01 buffers (optional pH 10.01)."
+    description = "Calibrate an Atlas Scientific EZO‑pH board using pH 7.00 and pH 4.00 buffers (optional pH 10.01)."
     requirements = (
         "pH probe connected and readable",
         "pH 7.00 buffer solution",
-        "pH 4.01 buffer solution",
+        "pH 4.00 buffer solution",
         "Distilled water for rinsing",
         "Optional: pH 10.01 buffer solution",
     )
