@@ -28,8 +28,8 @@ class PhEzoCalibration(structs.CalibrationBase, kw_only=True, tag="ph_ezo"):
     primarily for traceability + exportability (buffers used, timestamps, etc).
     """
 
-    x: str = "pH"
-    y: str = "Voltage"
+    x: str = "Buffer pH"
+    y: str = "Measured pH"
     buffers_used: list[float]
     ezo_calibration_status: str
     notes: str = ""
@@ -47,9 +47,9 @@ def _poly_identity() -> structs.PolyFitCoefficients:
 
 def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
     return {
-        "title": "pH calibration",
-        "x_label": "pH",
-        "y_label": "Voltage",
+        "title": "Calibration checkpoints",
+        "x_label": "Buffer pH",
+        "y_label": "Measured pH",
         "series": [
             {
                 "id": "ph",
@@ -99,7 +99,7 @@ def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
         return {"status_code": last_status, "body": last_body}
 
     # CLI / non-UI fallback: run locally.
-    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
+    from atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -160,7 +160,7 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
         raise RuntimeError(f"EZO-pH read failed: {last_error or 'unknown error'}")
 
     # CLI / non-UI path: direct hardware access.
-    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
+    from atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -188,7 +188,7 @@ def _register_ph_calibration_actions() -> None:
     from pioreactor.web.config import huey
     from pioreactor.web.tasks import register_calibration_action
 
-    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
+    from atlas_ezo_ph import AtlasEzoPH
 
     @huey.task()
     def ph_ezo_cmd(cmd: str, timeout_s: float = 1.5) -> dict[str, t.Any]:
@@ -460,11 +460,10 @@ class Finalize(SessionStep):
             calibration_name=_new_calibration_name(),
             calibrated_on_pioreactor_unit=unit,
             created_at=created_at,
-            curve_data_=[1.0, 0.0],
-            curve_type="poly",
-            x="pH",
-            y="Voltage",
-            recorded_data={"x": xs, "y": ys},
+            curve_data_=_poly_identity(),
+            recorded_data={"Buffer pH": xs, "Measured pH": ys},
+            x = "Buffer pH",
+            y = "Measured pH",
             buffers_used=xs,
             ezo_calibration_status=status_body,
             notes="Calibrated using UI protocol.",
@@ -496,7 +495,7 @@ def start_ph_ezo_session(target_device: str) -> CalibrationSession:
     now = utc_iso_timestamp()
     return CalibrationSession(
         session_id=_new_calibration_name(),
-        protocol_name="ezo_buffer",
+        protocol_name="ph_buffer",
         target_device=target_device,
         status="in_progress",
         step_id=Intro.step_id,
@@ -508,14 +507,15 @@ def start_ph_ezo_session(target_device: str) -> CalibrationSession:
 
 class EzoBufferPHProtocol(CalibrationProtocol[str]):
     target_device = "ph"
-    protocol_name = "ezo_buffer"
-    title = "Atlas EZO‑pH (buffer solutions)"
+    protocol_name = "ph_buffer"
+    title = "pH calibration (buffer solutions)"
     description = "Calibrate an Atlas Scientific EZO‑pH board using pH 7.00 and pH 4.01 buffers (optional pH 10.01)."
     requirements = (
         "pH probe connected and readable",
         "pH 7.00 buffer solution",
         "pH 4.01 buffer solution",
         "Distilled water for rinsing",
+        "Optional: pH 10.01 buffer solution",
     )
     priority = 50
     step_registry = PH_STEPS
