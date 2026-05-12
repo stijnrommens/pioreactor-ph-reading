@@ -29,7 +29,7 @@ class PhEzoCalibration(structs.CalibrationBase, kw_only=True, tag="ph_ezo"):
     """
 
     x: str = "pH"
-    y: str = "pH"
+    y: str = "Voltage"
     buffers_used: list[float]
     ezo_calibration_status: str
     notes: str = ""
@@ -47,9 +47,9 @@ def _poly_identity() -> structs.PolyFitCoefficients:
 
 def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
     return {
-        "title": "EZO-pH calibration checkpoints",
-        "x_label": "Buffer pH",
-        "y_label": "Measured pH",
+        "title": "pH calibration",
+        "x_label": "pH",
+        "y_label": "Voltage",
         "series": [
             {
                 "id": "ph",
@@ -99,7 +99,7 @@ def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
         return {"status_code": last_status, "body": last_body}
 
     # CLI / non-UI fallback: run locally.
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -160,7 +160,7 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
         raise RuntimeError(f"EZO-pH read failed: {last_error or 'unknown error'}")
 
     # CLI / non-UI path: direct hardware access.
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -188,7 +188,7 @@ def _register_ph_calibration_actions() -> None:
     from pioreactor.web.config import huey
     from pioreactor.web.tasks import register_calibration_action
 
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     @huey.task()
     def ph_ezo_cmd(cmd: str, timeout_s: float = 1.5) -> dict[str, t.Any]:
@@ -531,4 +531,3 @@ class EzoBufferPHProtocol(CalibrationProtocol[str]):
         if not calibrations:
             raise RuntimeError("No calibration was produced.")
         return t.cast(structs.CalibrationBase, calibrations[-1])
-

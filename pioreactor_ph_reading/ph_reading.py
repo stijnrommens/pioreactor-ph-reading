@@ -6,7 +6,7 @@ import click
 import busio
 from time import sleep
 from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
-import pioreactor_ph_reading.ph_calibration
+from pioreactor_ph_reading.ph_calibration import *
 
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import produce_metadata
