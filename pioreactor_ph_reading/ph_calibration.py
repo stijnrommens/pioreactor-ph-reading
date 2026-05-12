@@ -235,7 +235,13 @@ class Finalize (SessionStep):
             buffer_solution="default",
         )
         link = ctx.store_calibration(calibration, "ph")
-        ctx.complete({"calibration": link})
+        ctx.complete(
+            {
+                "title": "pH calibration saved",
+                "calibration": link,
+                "ezo_status": status_body,
+            }
+        )
         return None
 
 PH_STEPS: StepRegistry = {
