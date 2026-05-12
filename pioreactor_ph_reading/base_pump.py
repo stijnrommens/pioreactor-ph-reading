@@ -11,7 +11,7 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 class BasePump(BackgroundJobWithDodging):
 
     published_settings = {
-        "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
+        "initial_duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
         # "on": {"datatype": "boolean", "settable": True},
     }
     
