@@ -147,18 +147,18 @@ class Intro(SessionStep):
         ctx.data["timeout_s"] = ctx.inputs.float("timeout_s", minimum=0.5, maximum=20.0, default=1.5)
         ctx.data["read_samples"] = ctx.inputs.int("read_samples", minimum=1, maximum=10, default=3)
         ctx.data["points"] = []
-        return Clear()
-
-class Clear(SessionStep):
-    step_id = "clear"
-
-    def render(self, ctx) -> structs.CalibrationStep:
-        return steps.action("Clear existing calibration")
-
-    def advance(self, ctx):
-        timeout_s = float(ctx.data.get("timeout_s", 1.5))
-        result = _exec_ph_cmd(ctx, cmd="Cal,clear", timeout_s=timeout_s)
         return BufferMid()
+
+# class Clear(SessionStep):
+#     step_id = "clear"
+
+#     def render(self, ctx) -> structs.CalibrationStep:
+#         return steps.action("Clear existing calibration")
+
+#     def advance(self, ctx):
+#         timeout_s = float(ctx.data.get("timeout_s", 1.5))
+#         result = _exec_ph_cmd(ctx, cmd="Cal,clear", timeout_s=timeout_s)
+#         return BufferMid()
 
 class BufferMid(SessionStep):
     step_id = "buffer_7"
@@ -218,7 +218,7 @@ class Finalize (SessionStep):
 
 PH_STEPS: StepRegistry = {
     Intro.step_id: Intro,
-    Clear.step_id: Clear,
+    # Clear.step_id: Clear,
     BufferMid.step_id: BufferMid,
     BufferLow.step_id: BufferLow,
     Finalize.step_id: Finalize,
