@@ -20,10 +20,10 @@ class BasePump(BackgroundJobWithDodging):
     def __init__(self, hz, initial_duty_cycle, unit, experiment, start_on = True, **kwargs):
         super().__init__(unit=unit, experiment=experiment)
         self.hz = hz
-        self.initial_duty_cycle = initial_duty_cycle
+        self._initial_duty_cycle = initial_duty_cycle
         self.duty_cycle = initial_duty_cycle
             
-        self.pwm_pin = PWM_TO_PIN[config.get("PWM_reverse", "relay")]
+        self.pwm_pin = PWM_TO_PIN[config.get("PWM_reverse", "base_pump")]
         # looks at config.ini/configuration on UI to match 
         # changed PWM channel 3 to "base_pump" on leader
         # whatevers connected to channel 3 will receive power 
