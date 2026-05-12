@@ -24,6 +24,7 @@ class BasePump(BackgroundJobWithDodgingContrib):
         enable_dodging_od: bool = False,
     ):
         super(BasePump, self).__init__(
+            plugin_name="pioreactor_ph_reading",
             unit=unit,
             experiment=experiment,
             enable_dodging_od=enable_dodging_od,
@@ -85,14 +86,10 @@ def click_base_pump():
     hz = config.getfloat("base_pump.config", "hertz")
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
-    enable_dodging_od = config.getboolean("air_bubbler.config", "enable_dodging_od", fallback="false")
+    enable_dodging_od = config.getboolean("base_pump.config", "enable_dodging_od", fallback="false")
 
     bp = BasePump(
-        hz=hz,
-        initial_duty_cycle=dc,
-        unit=unit,
-        experiment=experiment,
-        enable_dodging_od=enable_dodging_od,
+        unit=unit, experiment=experiment, duty_cycle=dc, hertz=hz, enable_dodging_od=enable_dodging_od
     )
     bp.start_pumping()
     bp.block_until_disconnected()
