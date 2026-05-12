@@ -7,6 +7,7 @@ import busio
 from time import sleep
 from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 from pioreactor_ph_reading.ph_calibration import *
+# from pioreactor_ph_reading.ph_control import *
 
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import produce_metadata
@@ -24,6 +25,9 @@ from pioreactor.whoami import is_testing_env
 
 def __dir__():
     return ['click_ph_reading']
+
+def __dir__():
+    return ['click_ph_reading2']
 
 def parser(topic, payload) -> dict:
     metadata = produce_metadata(topic)
@@ -81,6 +85,18 @@ class PHReading(BackgroundJobContrib):
 
 @run.command(name="ph_reading")
 def click_ph_reading() -> None:
+    """
+    Returns pH readings.
+    """
+    unit = get_unit_name()
+    job = PHReading(
+        unit=unit,
+        experiment=get_assigned_experiment_name(unit),
+    )
+    job.block_until_disconnected()
+
+@run.command(name="ph_reading2")
+def click_ph_reading2() -> None:
     """
     Returns pH readings.
     """
