@@ -5,10 +5,9 @@ display: true  # true to display on the /Pioreactors card
 source: pioreactor_ph_reading
 description: Add a base pump to PWM channels
 published_settings:
-  - key: initial_duty_cycle   # as defined in Python
+  - key: duty_cycle   # as defined in Python
     unit: "%"
-    label: Duty cycle # human readable name
-    description: 
+    label: Pump intensity # human readable name
+    description: Modify the intensity of the base pump. Value between 0 (off) and 100 (high).
     type: numeric  # one of numeric, boolean, text
-    default: null
     display: false # false to display on the /Pioreactors card
