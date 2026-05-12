@@ -6,7 +6,7 @@ source: pioreactor_ph_reading
 description: Add a base pump to PWM channels
 published_settings:
   - key: duty_cycle   # as defined in Python
-    unit: %
+    unit: "%"
     label: Duty cycle # human readable name
     description: 
     type: float  # one of numeric, boolean, text
