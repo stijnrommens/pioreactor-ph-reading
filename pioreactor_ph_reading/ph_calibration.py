@@ -28,8 +28,8 @@ class PhEzoCalibration(structs.CalibrationBase, kw_only=True, tag="ph_ezo"):
     primarily for traceability + exportability (buffers used, timestamps, etc).
     """
 
-    x: str = "Buffer pH"
-    y: str = "Measured pH"
+    x: str = "pH"
+    y: str = "pH"
     buffers_used: list[float]
     ezo_calibration_status: str
     notes: str = ""
@@ -47,7 +47,7 @@ def _poly_identity() -> structs.PolyFitCoefficients:
 
 def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
     return {
-        "title": "Calibration checkpoints",
+        "title": "pH calibration",
         "x_label": "Buffer pH",
         "y_label": "Measured pH",
         "series": [
@@ -461,9 +461,7 @@ class Finalize(SessionStep):
             calibrated_on_pioreactor_unit=unit,
             created_at=created_at,
             curve_data_=_poly_identity(),
-            recorded_data={"Buffer pH": xs, "Measured pH": ys},
-            x = "Buffer pH",
-            y = "Measured pH",
+            recorded_data={"x": xs, "y": ys},
             buffers_used=xs,
             ezo_calibration_status=status_body,
             notes="Calibrated using UI protocol.",
@@ -495,7 +493,7 @@ def start_ph_ezo_session(target_device: str) -> CalibrationSession:
     now = utc_iso_timestamp()
     return CalibrationSession(
         session_id=_new_calibration_name(),
-        protocol_name="ph_buffer",
+        protocol_name="ezo_buffer",
         target_device=target_device,
         status="in_progress",
         step_id=Intro.step_id,
@@ -507,7 +505,7 @@ def start_ph_ezo_session(target_device: str) -> CalibrationSession:
 
 class EzoBufferPHProtocol(CalibrationProtocol[str]):
     target_device = "ph"
-    protocol_name = "ph_buffer"
+    protocol_name = "ezo_buffer"
     title = "pH calibration (buffer solutions)"
     description = "Calibrate an Atlas Scientific EZO‑pH board using pH 7.00 and pH 4.01 buffers (optional pH 10.01)."
     requirements = (
