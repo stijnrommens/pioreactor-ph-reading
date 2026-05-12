@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import typing as t
@@ -24,8 +25,9 @@ class PHBufferCalibration(structs.CalibrationBase, kw_only=True, tag="ph_buffer"
     x: str = "pH"
     y: str = "Voltage"
 
-    buffer_solution: t.Literal["4.01", "7.00"]
-    electrode_type: str
+    buffer_solution: list[float]
+    calibration_status: str
+    notes: str = ""
 
     def voltage_to_ph(self, voltage: float):
         return self.y_to_x(voltage)
@@ -53,6 +55,7 @@ def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]
         ],
     }
 
+
 def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
     if getattr(ctx, "executor", None) is not None and getattr(ctx, "mode", None) == "ui":
         last_status = 0
@@ -64,6 +67,7 @@ def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
                 last_body = payload.get("body")
             if last_status == 1:
                 return {"status_code": last_status, "body": last_body}
+            # 254 / 255 are EZO error / no data codes; retry a couple of times.
         return {"status_code": last_status, "body": last_body}
     try:
         probe = AtlasEzoPH.from_config()
@@ -71,6 +75,7 @@ def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
         return {"status_code": resp.status_code, "body": resp.body}
     except Exception as exc:
         raise RuntimeError(f"EZO-pH command '{cmd}' failed: {exc}") from exc
+
 
 def _exec_ph_read(ctx, *, samples: int) -> float:
     if getattr(ctx, "executor", None) is not None and getattr(ctx, "mode", None) == "ui":
@@ -81,8 +86,8 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
                 last_error = "invalid payload from executor"
                 continue
             if "pH" in payload:
-                signal = float(payload["pH"])
-                return signal
+                ph_value = float(payload["pH"])
+                return ph_value
             status = int(payload.get("status_code", 0))
             body = str(payload.get("body", "")).strip()
             last_error = f"status={status} body={body!r}"
@@ -91,8 +96,8 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
         raise RuntimeError(f"EZO-pH read failed: {last_error or 'unknown error'}")
     try:
         probe = AtlasEzoPH.from_config()
-        signal = float(probe.read_ph(samples=int(samples)))
-        return signal
+        ph_value = float(probe.read_ph(samples=int(samples)))
+        return ph_value
     except Exception as exc:
         raise RuntimeError(f"EZO-pH read failed: {exc}") from exc
 
@@ -107,8 +112,8 @@ def _register_ph_calibration_actions() -> None:
     @huey.task()
     def ph_ezo_read(samples: int = 3) -> dict[str, t.Any]:
         probe = AtlasEzoPH.from_config()
-        signal = float(probe.read_ph(samples=int(samples)))
-        return {"Voltage": signal}
+        ph_value = float(probe.read_ph(samples=int(samples)))
+        return {"pH": ph_value}
 
     def _default_normalizer(result: t.Any) -> dict[str, t.Any]:
         return result if isinstance(result, dict) else {}
@@ -141,24 +146,38 @@ class Intro(SessionStep):
     step_id = "intro"
 
     def render(self, ctx) -> structs.CalibrationStep:
-        return steps.info("pH calibration", "Place probe in buffer.")
+        body = "\n".join(
+            [
+                "This guided protocol calibrates an Atlas Scientific EZO‑pH sensor using buffer solutions.",
+                "",
+                "Before you start:",
+                "- Stop any running pH tracking job (ph_reading) on this unit.",
+                "- Get pH 7.00 buffer and pH 4.01 buffer.",
+                "- Rinse the probe with distilled water between buffers and gently blot dry.",
+                "- Avoid bubbles on the probe tip.",
+                "- In each buffer step, wait ~30 seconds for readings to stabilize before pressing Continue.",
+                "",
+                "Press Continue to configure the protocol.",
+            ]
+        )
+        return steps.info("pH calibration", body)
 
     def advance(self, ctx):
         ctx.data["timeout_s"] = ctx.inputs.float("timeout_s", minimum=0.5, maximum=20.0, default=1.5)
         ctx.data["read_samples"] = ctx.inputs.int("read_samples", minimum=1, maximum=10, default=3)
         ctx.data["points"] = []
+        return Clear()
+
+class Clear(SessionStep):
+    step_id = "clear"
+
+    def render(self, ctx) -> structs.CalibrationStep:
+        return steps.action("Clear existing calibration")
+
+    def advance(self, ctx):
+        timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        result = _exec_ph_cmd(ctx, cmd="Cal,clear", timeout_s=timeout_s)
         return BufferMid()
-
-# class Clear(SessionStep):
-#     step_id = "clear"
-
-#     def render(self, ctx) -> structs.CalibrationStep:
-#         return steps.action("Clear existing calibration")
-
-#     def advance(self, ctx):
-#         timeout_s = float(ctx.data.get("timeout_s", 1.5))
-#         result = _exec_ph_cmd(ctx, cmd="Cal,clear", timeout_s=timeout_s)
-#         return BufferMid()
 
 class BufferMid(SessionStep):
     step_id = "buffer_7"
@@ -197,6 +216,8 @@ class Finalize (SessionStep):
     
     def advance(self, ctx):
         timeout_s = float(ctx.data.get("timeout_s", 1.5))
+        status_resp = _exec_ph_cmd(ctx, cmd="Cal,?", timeout_s=timeout_s)
+        status_body = str(status_resp.get("body", "")).strip()
         points: list[dict[str, float]] = list(ctx.data.get("points", []))
         xs = [float(p["x"]) for p in points]
         ys = [float(p["y"]) for p in points]        
@@ -210,6 +231,7 @@ class Finalize (SessionStep):
             x="pH",
             y="voltage",
             recorded_data={"x": [xs], "y": [ys]},
+            calibration_status=status_body,
             buffer_solution="default",
         )
         link = ctx.store_calibration(calibration, "ph")
@@ -218,7 +240,7 @@ class Finalize (SessionStep):
 
 PH_STEPS: StepRegistry = {
     Intro.step_id: Intro,
-    # Clear.step_id: Clear,
+    Clear.step_id: Clear,
     BufferMid.step_id: BufferMid,
     BufferLow.step_id: BufferLow,
     Finalize.step_id: Finalize,
@@ -242,6 +264,12 @@ class BufferBasedPHProtocol(CalibrationProtocol):
     protocol_name = "buffer_based"
     title = "pH calibration (buffer solutions)"
     description = "Calibrate the pH sensor using buffer solutions"
+    requirements = (
+        "pH probe connected and readable",
+        "pH 7.00 buffer solution",
+        "pH 4.00 buffer solution",
+        "Distilled water for rinsing",
+    )
     step_registry = PH_STEPS
 
     @classmethod
