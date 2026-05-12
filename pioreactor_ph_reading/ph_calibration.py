@@ -16,6 +16,8 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 from pioreactor.calibrations.session_flow import run_session_in_cli
+from pioreactor.web.config import huey
+from pioreactor.web.tasks import register_calibration_action
 
 
 class PHBufferCalibration(CalibrationBase, kw_only=True, tag="ph_buffer"):
@@ -95,22 +97,44 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
         raise RuntimeError(f"EZO-pH read failed: {exc}") from exc
 
 
-# def run_ph_buffer_calibration():
-#     # run the calibration to get data
-#     ...
+def _register_ph_calibration_actions() -> None:
+    @huey.task()
+    def ph_ezo_cmd(cmd: str, timeout_s: float = 1.5) -> dict[str, t.Any]:
+        probe = AtlasEzoPH.from_config()
+        resp = probe.query(cmd, timeout_s=float(timeout_s))
+        return {"status_code": resp.status_code, "body": resp.body}
 
-#     return PHBufferCalibration(
-#         calibration_name="ph_calibration",
-#         calibrated_on_pioreactor_unit=whoami.get_unit_name(),
-#         created_at=current_utc_datetime(),
-#         curve_data_=[2, 3, 5],
-#         curve_type="poly",
-#         x="Voltage",
-#         y="pH",
-#         recorded_data={"x": [0.1, 0.2, 0.3], "y": [1.0, 2.0, 3.0]},
-#         buffer_solution="default",
-#         electrode_type="glass"
-#     )
+    @huey.task()
+    def ph_ezo_read(samples: int = 3) -> dict[str, t.Any]:
+        probe = AtlasEzoPH.from_config()
+        signal = float(probe.read_ph(samples=int(samples)))
+        return {"Voltage": signal}
+
+    def _default_normalizer(result: t.Any) -> dict[str, t.Any]:
+        return result if isinstance(result, dict) else {}
+
+    register_calibration_action(
+        "ph_ezo_cmd",
+        lambda payload: (
+            ph_ezo_cmd(str(payload["cmd"]), float(payload.get("timeout_s", 1.5))),
+            "EZO-pH command",
+            _default_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "ph_ezo_read",
+        lambda payload: (
+            ph_ezo_read(int(payload.get("samples", 3))),
+            "EZO-pH read",
+            _default_normalizer,
+        ),
+    )
+
+try:
+    _register_ph_calibration_actions()
+except Exception:
+    pass
+
 
 # Session steps (UI + CLI flow)
 class Intro(SessionStep):
