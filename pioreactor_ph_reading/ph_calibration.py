@@ -140,7 +140,7 @@ except Exception:
 class Intro(SessionStep):
     step_id = "intro"
 
-    def render(self, ctx):
+    def render(self, ctx) -> structs.CalibrationStep:
         return steps.info("pH calibration", "Place probe in buffer.")
 
     def advance(self, ctx):
