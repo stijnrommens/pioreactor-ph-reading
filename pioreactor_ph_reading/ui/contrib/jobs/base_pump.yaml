@@ -11,4 +11,4 @@ published_settings:
     description: 
     type: numeric  # one of numeric, boolean, text
     default: null
-    display: true # true to display on the /Pioreactors card
+    display: false # false to display on the /Pioreactors card

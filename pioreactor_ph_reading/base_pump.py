@@ -11,7 +11,7 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 class BasePump(BackgroundJobWithDodging):
 
     published_settings = {
-        "duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
+        "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
         # "on": {"datatype": "boolean", "settable": True},
     }
     
@@ -47,7 +47,7 @@ class BasePump(BackgroundJobWithDodging):
 
     def on_disconnected(self):
         self.logger.debug("disconnecting... will clean up PWM")
-        self.pwm.cleanup()
+        self.pwm.clean_up()
         
     def action_to_do_before_od_reading(self):
         self.set_on(False)
