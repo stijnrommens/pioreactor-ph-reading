@@ -20,7 +20,7 @@ from pioreactor.web.config import huey
 from pioreactor.web.tasks import register_calibration_action
 
 
-class PHBufferCalibration(CalibrationBase, kw_only=True, tag="ph_buffer"):
+class PHBufferCalibration(structs.CalibrationBase, kw_only=True, tag="ph_buffer"):
     x: str = "pH"
     y: str = "Voltage"
 
