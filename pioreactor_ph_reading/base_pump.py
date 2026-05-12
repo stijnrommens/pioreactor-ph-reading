@@ -20,7 +20,7 @@ class BasePump(BackgroundJobWithDodging):
     def __init__(self, hz, initial_duty_cycle, unit, experiment, start_on = True, **kwargs):
         super().__init__(unit=unit, experiment=experiment)
         self.hz = hz
-        self._initial_duty_cycle = initial_duty_cycle
+        self.initial_duty_cycle = initial_duty_cycle
         self.duty_cycle = initial_duty_cycle
             
         self.pwm_pin = PWM_TO_PIN[config.get("PWM_reverse", "relay")]
