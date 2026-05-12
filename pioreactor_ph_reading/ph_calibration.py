@@ -99,7 +99,7 @@ def _exec_ph_cmd(ctx, *, cmd: str, timeout_s: float) -> dict[str, t.Any]:
         return {"status_code": last_status, "body": last_body}
 
     # CLI / non-UI fallback: run locally.
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -160,7 +160,7 @@ def _exec_ph_read(ctx, *, samples: int) -> float:
         raise RuntimeError(f"EZO-pH read failed: {last_error or 'unknown error'}")
 
     # CLI / non-UI path: direct hardware access.
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     try:
         probe = AtlasEzoPH.from_config()
@@ -188,7 +188,7 @@ def _register_ph_calibration_actions() -> None:
     from pioreactor.web.config import huey
     from pioreactor.web.tasks import register_calibration_action
 
-    from atlas_ezo_ph import AtlasEzoPH
+    from pioreactor_ph_reading.atlas_ezo_ph import AtlasEzoPH
 
     @huey.task()
     def ph_ezo_cmd(cmd: str, timeout_s: float = 1.5) -> dict[str, t.Any]:
