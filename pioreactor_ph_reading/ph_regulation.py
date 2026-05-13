@@ -19,7 +19,7 @@ class PHRegulation(DosingAutomationJobContrib):
         self.target_ph     = float(target_ph)
 
     def execute(self):
-        if self.ph_reading < self.target_ph:
+        if self.ph < (self.target_ph - 0.1):
             vol = self.add_alt_media_to_bioreactor(
                 ml=self.dosing_volume,
                 source_of_event=f"{self.job_name}:{self.automation_name}",
