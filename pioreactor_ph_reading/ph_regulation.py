@@ -3,9 +3,6 @@ from __future__ import annotations
 
 from pioreactor_ph_reading.ph_reading import PHReading, click_ph_reading
 
-from pioreactor.automations.dosing.base import DosingAutomationJobContrib
-
-
 # __all__ = ['PHRegulation']
 
 
