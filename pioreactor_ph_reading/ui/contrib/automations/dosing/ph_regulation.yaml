@@ -1,17 +1,21 @@
 ---
 display_name: pH control  # human readable name
 automation_name: ph_regulation   # the corresponding name of the automation from the Python code.
-description: Automatic base dosing to maintain a desired pH.
 source: ph_regulation
+description: Automatic base dosing to maintain a desired pH.
 fields:
   - key: duration  # key is the same as the keyword in the Python code.
     default: 0.5
     unit: min
     label: Time between check
+    type: numeric
   - key: target_ph
     default: 5.0
+    unit: "-"
     label: Target pH
+    type: numeric
   - key: volume
     default: 0.1
     unit: mL
     label: Volume per dose
+    type: numeric
