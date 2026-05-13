@@ -15,6 +15,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
+from pioreactor.calibration import utils
 
 
 logger = logging.getLogger("ph_calibration")
@@ -40,9 +41,10 @@ def _new_calibration_name() -> str:
     return f"ezo_ph_{utc_iso_timestamp().replace(':', '').replace('-', '')}"
 
 
-def _poly_identity() -> structs.PolyFitCoefficients:
+def _poly_identity(xs, ys) -> structs.PolyFitCoefficients:
     # y = 1*x + 0
-    return structs.PolyFitCoefficients([1.0, 0.0])
+    coefs = utils.calculate_poly_curve_of_best_fit(xs, ys, degree=2)
+    return structs.PolyFitCoefficients(coefs)
 
 
 def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
@@ -460,7 +462,7 @@ class Finalize(SessionStep):
             calibration_name=_new_calibration_name(),
             calibrated_on_pioreactor_unit=unit,
             created_at=created_at,
-            curve_data_=_poly_identity(),
+            curve_data_=_poly_identity(xs, ys),
             recorded_data={"x": xs, "y": ys},
             buffers_used=xs,
             ezo_calibration_status=status_body,
