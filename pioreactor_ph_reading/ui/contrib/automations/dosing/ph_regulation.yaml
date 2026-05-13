@@ -11,7 +11,7 @@ fields:
     type: numeric
   - key: target_ph
     default: 5.0
-    unit: "-"
+    unit: -
     label: Target pH
     type: numeric
   - key: volume
