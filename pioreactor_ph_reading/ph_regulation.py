@@ -24,7 +24,7 @@ class PHRegulation(DosingAutomationJobContrib):
             actual_ph = actual_ph.payload.decode()
             if float(actual_ph) < (self.target_ph - 0.1):
                 vol = self.add_alt_media_to_bioreactor(
-                    ml=self.dosing_volume,
+                    duration=1,
                     source_of_event=f"{self.job_name}:{self.automation_name}",
                     unit=self.unit,
                     experiment=self.experiment,
