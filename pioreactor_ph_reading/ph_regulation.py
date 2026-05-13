@@ -14,12 +14,11 @@ class PHRegulation(DosingAutomationJobContrib):
         "target_ph": {"datatype": "float", "settable": True, "unit": "-"}
     }
 
-    def __init__(self, dosing_volume, target_ph, actual_ph, **kwargs):
+    def __init__(self, dosing_volume, target_ph, **kwargs):
         super().__init__(**kwargs)
         self.logger.warning("When using pH control, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!")
         self.dosing_volume = float(dosing_volume)
         self.target_ph     = float(target_ph)
-        self.actual_ph     = float(actual_ph)
 
     def execute(self):
         if PHReading.ph < (self.target_ph - 0.1):
