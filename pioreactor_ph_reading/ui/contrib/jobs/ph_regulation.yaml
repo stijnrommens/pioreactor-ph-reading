@@ -6,7 +6,7 @@ description: Automatic base dosing to maintain a desired pH.
 source: ph_regulation
 published_settings:
   - key: ph_setpoint
-    default: 5.0
+    default: 5
     unit: "-"
     label: Setpoint pH
     description: Modify the pH setpoint. Value between 0 (off) and 14 (high).

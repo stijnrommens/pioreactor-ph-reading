@@ -62,4 +62,4 @@ def click_ph_regulation() -> None:
         unit=unit,
         experiment=get_assigned_experiment_name(unit),
     )
-    job.block_until_disconnected()
+    job.execute()
