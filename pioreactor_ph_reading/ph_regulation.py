@@ -19,7 +19,7 @@ class PHRegulation(DosingAutomationJobContrib):
         self.target_ph     = float(target_ph)
 
     def execute(self):
-        actual_ph = subscribe(f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/ph_reading/ph", timeout=1)
+        actual_ph = subscribe(f"pioreactor/{self.unit}/{self.experiment}/ph_reading/ph", timeout=1)
         if actual_ph is not None:
             actual_ph = actual_ph.payload.decode() # this is now a string, you may need to call float(...) etc to convert it. 
         else:
