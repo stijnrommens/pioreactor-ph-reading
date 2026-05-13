@@ -12,8 +12,8 @@ published_settings:
     display: true
     description: The duration (s) between pH readings. There is a minimum duration, around 10s, that is required for proper accuracy.
   - key: ph
-    unit: s
+    unit: "-"
     label: pH reading
     type: numeric
-    display: true
+    display: false
     description: The current pH reading.

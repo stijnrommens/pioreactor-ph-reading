@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor_ph_reading.ph_reading import PHReading
+
 from pioreactor.automations.dosing.base import DosingAutomationJobContrib
 from pioreactor.config import config
 
