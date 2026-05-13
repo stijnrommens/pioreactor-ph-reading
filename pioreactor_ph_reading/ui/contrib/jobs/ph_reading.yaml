@@ -15,5 +15,5 @@ published_settings:
     unit: s
     label: pH reading
     type: numeric
-    display: false
+    display: true
     description: The current pH reading.
