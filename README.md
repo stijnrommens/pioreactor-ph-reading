@@ -2,7 +2,7 @@
 
 Atlas Scientific offers the EZO pH circuit that outputs a digital signal (I2C or UART) from an analog pH electrode.
 
-This is a simple Pioreactor plugin that returns pH readings at a set duration from connected Atlas Scientific EZO pH circuits, connected to a Thermo Scientific Orion Single Junction Combination pH Electrode.
+This is a simple Pioreactor plugin that returns pH readings from the connected Atlas Scientific EZO pH circuit, connected to a Thermo Scientific Orion Single Junction Combination pH Electrode. This plugin also includes options for pH control and calibration.
 
 ## Install from source
 
@@ -17,3 +17,11 @@ pio plugins install pioreactor_ph_reading --source git+https://github.com/stijnr
 ## Overview chart
 
 This also adds a chart to your overview page that displays the pH readings per Pioreactor.
+
+## Calibration protocol
+
+A calibration protocol provided in the UI. The protocol allows you to select between a 2-point or 3-point calibration. Calibration data is saved on the EZO pH circuit.
+
+## Dosing automation
+
+Controlling of pH is possible by selecting `pH control` in `dosing automations`, and providing a `Target pH`. Base dosing is done via the `alt_media` pump defined under the `PWM` configuration.
