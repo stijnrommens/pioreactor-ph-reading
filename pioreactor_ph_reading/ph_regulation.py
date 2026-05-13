@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-
-from pioreactor_ph_reading.ph_reading import PHReading, click_ph_reading
-
 # __all__ = ['PHRegulation']
 
 
@@ -13,8 +10,8 @@ class PHRegulation(DosingAutomationJobContrib):
         "target_ph": {"datatype": "float", "settable": True, "unit": "-"}
     }
 
-    def __init__(self, dosing_volume, target_ph, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, unit:str, experiment:str, dosing_volume:float, target_ph:float, **kwargs) -> None:
+        super().__init__(unit=unit, experiment=experiment, plugin_name="pioreactor_ph_reading", **kwargs)
         self.logger.warning(
             "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"
         )
@@ -22,7 +19,7 @@ class PHRegulation(DosingAutomationJobContrib):
         self.target_ph = float(target_ph)
 
     def execute(self):
-        if self.click_ph_reading() < self.target_ph:
+        if self.ph < self.target_ph:
             vol = self.add_media_to_bioreactor(
                 ml=self.dosing_volume,
                 source_of_event=f"{self.job_name}:{self.automation_name}",
