@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from pioreactor_ph_reading.ph_reading import PHReading
-
 from pioreactor.automations.dosing.base import DosingAutomationJobContrib
-from pioreactor.config import config
+# from pioreactor.pubsub import subscribe
 
 
 class PHRegulation(DosingAutomationJobContrib):
@@ -21,7 +19,7 @@ class PHRegulation(DosingAutomationJobContrib):
         self.target_ph     = float(target_ph)
 
     def execute(self):
-        if self.ph < (self.target_ph - 0.1):
+        if self.ph_readings < (self.target_ph - 0.1):
             vol = self.add_alt_media_to_bioreactor(
                 ml=self.dosing_volume,
                 source_of_event=f"{self.job_name}:{self.automation_name}",
