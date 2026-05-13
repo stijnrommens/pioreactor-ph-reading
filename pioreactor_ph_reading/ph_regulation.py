@@ -21,8 +21,8 @@ class PHRegulation(DosingAutomationJobContrib):
     def execute(self):
         actual_ph = subscribe(f"pioreactor/{self.unit}/{self.experiment}/ph_reading/ph", timeout=1)
         if actual_ph is not None:
-            actual_ph = actual_ph.payload.decode() # this is now a string, you may need to call float(...) etc to convert it. 
-            if actual_ph < (self.target_ph - 0.1):
+            actual_ph = actual_ph.payload.decode()
+            if float(actual_ph) < (self.target_ph - 0.1):
                 vol = self.add_alt_media_to_bioreactor(
                     ml=self.dosing_volume,
                     source_of_event=f"{self.job_name}:{self.automation_name}",
@@ -35,4 +35,3 @@ class PHRegulation(DosingAutomationJobContrib):
                     self.logger.warning("Under-dosed!")
         else:
             actual_ph = None
-            
