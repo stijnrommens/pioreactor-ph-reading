@@ -14,7 +14,7 @@ fields:
     unit: "-"
     label: Target pH
     type: numeric
-  - key: volume
+  - key: dosing_volume
     default: 0.1
     unit: mL
     label: Volume per dose
