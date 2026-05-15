@@ -36,9 +36,9 @@ class PHRegulation(DosingAutomationJobContrib):
         actual_ph = subscribe(f"pioreactor/{self.unit}/{self.experiment}/ph_reading/ph", timeout=1)
 
         if actual_ph is not None:
-            actual_ph = actual_ph.payload.decode()
+            actual_ph = float(actual_ph.payload.decode())
             dosing_time = self.pid.update(actual_ph, dt=self.duration/60)
-            if float(actual_ph) < self.min_ph:
+            if actual_ph < self.min_ph:
                 dur = self.add_alt_media_to_bioreactor(
                     duration=dosing_time,
                     source_of_event=f"{self.job_name}:{self.automation_name}",
