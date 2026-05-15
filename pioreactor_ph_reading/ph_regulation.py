@@ -37,7 +37,7 @@ class PHRegulation(DosingAutomationJobContrib):
 
         if actual_ph is not None:
             actual_ph = actual_ph.payload.decode()
-            dosing_time = self.pid.update(self.actual_ph, dt=self.duration/60)
+            dosing_time = self.pid.update(actual_ph, dt=self.duration/60)
             if float(actual_ph) < self.min_ph:
                 dur = self.add_alt_media_to_bioreactor(
                     duration=dosing_time,
