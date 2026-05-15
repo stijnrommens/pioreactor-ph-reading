@@ -6,6 +6,12 @@ This is a simple Pioreactor plugin that returns pH readings from the connected A
 
 ## Install from source
 
+If git is not installed on the RPi yet:
+```bash
+sudo apt-get install git
+```
+
+Then:
 ```bash
 pio plugins install pioreactor_ph_reading --source git+https://github.com/stijnrommens/pioreactor-ph-reading.git
 ```
