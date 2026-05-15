@@ -329,12 +329,16 @@ class BufferMid(SessionStep):
     step_id = "buffer_7"
 
     def render(self, ctx) -> structs.CalibrationStep:
+        samples = int(ctx.data.get("read_samples", 3))
+        reading = _exec_ph_read(ctx, samples=samples)
         return steps.action(
             "pH 7.00 buffer",
             "\n".join(
                 [
                     "Place the probe in pH 7.00 buffer.",
-                    "Wait until the reading stabilizes.",
+                    "",
+                    "Wait until the current reading stabilizes:",
+                    f"{reading:.2f}",
                     "",
                     "Press Continue to calibrate the mid-point (7.00).",
                 ]
