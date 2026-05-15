@@ -16,7 +16,7 @@ class PHRegulation(DosingAutomationJobContrib):
         "target_ph": {"datatype": "float", "settable": True, "unit": "-"}
     }
 
-    def __init__(self, target_dosing_time, target_ph, **kwargs):
+    def __init__(self, target_ph, **kwargs):
         super(PHRegulation, self).__init__(**kwargs)        
         self.target_ph = float(target_ph)
 
