@@ -43,7 +43,7 @@ def _new_calibration_name() -> str:
 
 def _poly_identity(xs:list[float], ys:list[float]) -> structs.PolyFitCoefficients:
     # y = 1*x + 0
-    coefs = calculate_poly_curve_of_best_fit(x=xs, ys=ys, degree=2)
+    coefs = calculate_poly_curve_of_best_fit(x=xs, y=ys, degree=2)
     return coefs
 
 
@@ -334,7 +334,7 @@ class BufferMid(SessionStep):
             "\n".join(
                 [
                     "Place the probe in pH 7.00 buffer.",
-                    "Wait until the current reading stabilizes:",
+                    "Wait until the reading stabilizes.",
                     "",
                     "Press Continue to calibrate the mid-point (7.00).",
                 ]

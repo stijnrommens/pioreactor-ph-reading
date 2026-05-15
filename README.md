@@ -11,7 +11,7 @@ pio plugins install pioreactor_ph_reading --source git+https://github.com/stijnr
 ```
 
 > [!IMPORTANT]
-> After installation, you'll need to check your configuration to add the right I2C-adress. Find the section `[pH_reading.config]`, and edit parameter `i2c_channel_hex`. Normally, the EZO pH circuit should be adressed as `0x63`.
+> After installation, you'll need to check your configuration to add the right I2C-adress. Find the section `[pH_reading.config]`, and edit parameter `i2c_channel_hex`. Normally, the EZO pH circuit should be adressed as `0x63`. Moreover, PID settings should be checked under `[pH_regulation.config]`, and adjusted if necessary.
 
 
 ## Overview chart
@@ -24,4 +24,4 @@ A calibration protocol provided in the UI. The protocol allows you to select bet
 
 ## Dosing automation
 
-Controlling of pH is possible by selecting `pH control` in `dosing automations`, and providing a `Target pH`. Base dosing is done via the `alt_media` pump defined under the `PWM` configuration.
+Controlling of pH is possible by selecting `pH control` in `dosing automations`, and providing a `Target pH`. Base dosing is done via the `alt_media` pump defined under the `PWM` configuration. Note that this automation can be started once the `pH reading` job is started. It is recommended to apply the same interval as used for the pH reading itself.
