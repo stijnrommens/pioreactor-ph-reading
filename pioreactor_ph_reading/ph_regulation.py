@@ -53,3 +53,7 @@ class PHRegulation(DosingAutomationJobContrib):
     @property
     def min_ph(self):
         return 0.95 * self.target_ph
+    
+    @property
+    def max_ph(self):
+        return 1.05 * self.target_ph

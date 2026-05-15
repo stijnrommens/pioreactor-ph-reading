@@ -44,7 +44,7 @@ def _new_calibration_name() -> str:
 def _poly_identity(xs, ys) -> structs.PolyFitCoefficients:
     # y = 1*x + 0
     coefs = calculate_poly_curve_of_best_fit(xs, ys, degree=2)
-    return structs.PolyFitCoefficients(coefs)
+    return coefs
 
 
 def _build_chart_from_points(points: list[dict[str, float]]) -> dict[str, t.Any]:
