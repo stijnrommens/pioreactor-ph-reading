@@ -9,5 +9,5 @@ published_settings:
     unit: s
     label: Time between pH readings
     type: numeric
-    display: True
+    display: true
     description: The duration (s) between pH readings. There is a minimum duration, around 10s, that is required for proper accuracy.
