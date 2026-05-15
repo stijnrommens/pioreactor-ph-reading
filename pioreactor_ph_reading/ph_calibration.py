@@ -15,7 +15,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
-from pioreactor.calibration.utils import calculate_poly_curve_of_best_fit
+from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
 
 
 logger = logging.getLogger("ph_calibration")

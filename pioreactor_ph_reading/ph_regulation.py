@@ -7,8 +7,6 @@ from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJobContrib
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe
-from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import PID
 
 
