@@ -41,9 +41,9 @@ def _new_calibration_name() -> str:
     return f"ezo_ph_{utc_iso_timestamp().replace(':', '').replace('-', '')}"
 
 
-def _poly_identity(xs, ys) -> structs.PolyFitCoefficients:
+def _poly_identity(xs:list[float], ys:list[float]) -> structs.PolyFitCoefficients:
     # y = 1*x + 0
-    coefs = calculate_poly_curve_of_best_fit(xs, ys, degree=2)
+    coefs = calculate_poly_curve_of_best_fit(x=xs, ys=ys, degree=2)
     return coefs
 
 
