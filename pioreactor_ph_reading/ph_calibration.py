@@ -15,7 +15,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
-from pioreactor.calibration import utils
+from pioreactor.calibration.utils import calculate_poly_curve_of_best_fit
 
 
 logger = logging.getLogger("ph_calibration")
@@ -43,7 +43,7 @@ def _new_calibration_name() -> str:
 
 def _poly_identity(xs, ys) -> structs.PolyFitCoefficients:
     # y = 1*x + 0
-    coefs = utils.calculate_poly_curve_of_best_fit(xs, ys, degree=2)
+    coefs = calculate_poly_curve_of_best_fit(xs, ys, degree=2)
     return structs.PolyFitCoefficients(coefs)
 
 

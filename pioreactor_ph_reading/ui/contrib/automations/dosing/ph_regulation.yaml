@@ -14,8 +14,3 @@ fields:
     unit: "-"
     label: Target pH
     type: numeric
-  - key: dosing_time
-    default: 1
-    unit: s
-    label: Duration of base shot
-    type: numeric
