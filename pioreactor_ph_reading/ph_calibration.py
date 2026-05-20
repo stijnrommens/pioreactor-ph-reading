@@ -323,14 +323,15 @@ class BufferMid(SessionStep):
 
     def render(self, ctx) -> structs.CalibrationStep:
         timeout_s = float(ctx.data.get("timeout_s", 1.5))
-        result = _exec_ph_cmd(ctx, cmd="R", timeout_s=timeout_s)
+        samples = int(ctx.data.get("read_samples", 3))
+        reading = _exec_ph_read(ctx, samples=samples)
         return steps.action(
             "pH 7.00 buffer",
             "\n".join(
                 [
                     "Place the probe in pH 7.00 buffer.",
                     "Wait until the reading stabilizes.",
-                    f"{result}",
+                    f"{reading}",
                     "Press Continue to calibrate the mid-point (7.00).",
                 ]
             ),
